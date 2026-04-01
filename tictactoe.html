@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TIC · TAC · TOE</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet"/>
+
+  <style>
+    /* ═══════════════════════════════════════════
+       CSS VARIABLES — retro-arcade neon theme
+    ═══════════════════════════════════════════ */
+    :root {
+      --bg:          #05060f;
+      --surface:     #0d0f1e;
+      --panel:       #111426;
+      --border:      #1e2240;
+      --x-color:     #ff3c6e;   /* hot pink / red  */
+      --o-color:     #00e5ff;   /* electric cyan   */
+      --win-glow:    #ffe259;   /* golden highlight */
+      --text:        #c8cce8;
+      --muted:       #3a3f60;
+      --font-title:  'Orbitron', monospace;
+      --font-mono:   'Share Tech Mono', monospace;
+    }
+
+    /* ═══════════════════════════════════════════
+       RESET & BASE
+    ═══════════════════════════════════════════ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      /* scanline overlay */
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(0,0,0,.18) 2px,
+          rgba(0,0,0,.18) 4px
+        ),
+        radial-gradient(ellipse at 50% 0%, #0e1535 0%, #05060f 70%);
+    }
+
+    /* ═══════════════════════════════════════════
+       TITLE
+    ═══════════════════════════════════════════ */
+    .title {
+      font-family: var(--font-title);
+      font-size: clamp(22px, 6vw, 38px);
+      font-weight: 900;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      /* split-color effect */
+      background: linear-gradient(90deg, var(--x-color) 0%, #fff 45%, var(--o-color) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 18px rgba(0,229,255,.35));
+    }
+
+    .subtitle {
+      font-size: 11px;
+      letter-spacing: .22em;
+      color: var(--muted);
+      margin-bottom: 28px;
+      text-transform: uppercase;
+    }
+
+    /* ═══════════════════════════════════════════
+       CARD WRAPPER
+    ═══════════════════════════════════════════ */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 28px 24px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,.03),
+        0 24px 64px rgba(0,0,0,.7),
+        inset 0 1px 0 rgba(255,255,255,.04);
+    }
+
+    /* ═══════════════════════════════════════════
+       MODE TOGGLE  (vs Human / vs AI)
+    ═══════════════════════════════════════════ */
+    .mode-toggle {
+      display: flex;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 20px;
+      gap: 4px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      padding: 8px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: .1em;
+      cursor: pointer;
+      transition: background .2s, color .2s, box-shadow .2s;
+      text-transform: uppercase;
+    }
+
+    .mode-btn.active {
+      background: var(--border);
+      color: var(--text);
+      box-shadow: 0 2px 8px rgba(0,0,0,.4);
+    }
+
+    /* ═══════════════════════════════════════════
+       SCOREBOARD
+    ═══════════════════════════════════════════ */
+    .scoreboard {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      margin-bottom: 20px;
+      gap: 8px;
+    }
+
+    .score-side {
+      text-align: center;
+      padding: 10px 8px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      transition: border-color .3s, box-shadow .3s;
+    }
+
+    .score-side.active-x { border-color: var(--x-color); box-shadow: 0 0 16px rgba(255,60,110,.2); }
+    .score-side.active-o { border-color: var(--o-color); box-shadow: 0 0 16px rgba(0,229,255,.2); }
+
+    .score-label {
+      font-family: var(--font-title);
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: .1em;
+    }
+
+    .score-label.x { color: var(--x-color); text-shadow: 0 0 12px var(--x-color); }
+    .score-label.o { color: var(--o-color); text-shadow: 0 0 12px var(--o-color); }
+
+    .score-value {
+      font-family: var(--font-title);
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .score-wins {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .score-divider {
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .08em;
+      text-align: center;
+    }
+
+    /* ═══════════════════════════════════════════
+       STATUS BAR
+    ═══════════════════════════════════════════ */
+    .status-bar {
+      text-align: center;
+      padding: 10px 16px;
+      border-radius: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      margin-bottom: 20px;
+      font-size: 13px;
+      letter-spacing: .1em;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color .3s;
+    }
+
+    .status-bar.turn-x  { border-color: rgba(255,60,110,.4); }
+    .status-bar.turn-o  { border-color: rgba(0,229,255,.4); }
+    .status-bar.win     { border-color: var(--win-glow); color: var(--win-glow); animation: statusPop .4s ease; }
+    .status-bar.draw    { border-color: var(--muted); color: var(--muted); }
+
+    @keyframes statusPop {
+      0%   { transform: scale(.95); }
+      60%  { transform: scale(1.04); }
+      100% { transform: scale(1); }
+    }
+
+    /* ═══════════════════════════════════════════
+       GAME GRID
+    ═══════════════════════════════════════════ */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    /* individual cell */
+    .cell {
+      aspect-ratio: 1;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-title);
+      font-size: clamp(32px, 10vw, 52px);
+      font-weight: 900;
+      transition: border-color .2s, background .2s, transform .1s, box-shadow .2s;
+      position: relative;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* hover — only on empty cells */
+    .cell.empty:hover {
+      background: #161a2e;
+      border-color: #2e3358;
+      transform: scale(1.03);
+    }
+
+    /* preview ghost on hover */
+    .cell.empty:hover::after {
+      content: attr(data-preview);
+      position: absolute;
+      font-family: var(--font-title);
+      font-size: clamp(32px, 10vw, 52px);
+      font-weight: 900;
+      opacity: .15;
+    }
+    .cell.empty.preview-x:hover::after { color: var(--x-color); }
+    .cell.empty.preview-o:hover::after { color: var(--o-color); }
+
+    /* X mark */
+    .cell.x {
+      color: var(--x-color);
+      border-color: rgba(255,60,110,.3);
+      text-shadow: 0 0 20px var(--x-color);
+      cursor: default;
+    }
+
+    /* O mark */
+    .cell.o {
+      color: var(--o-color);
+      border-color: rgba(0,229,255,.3);
+      text-shadow: 0 0 20px var(--o-color);
+      cursor: default;
+    }
+
+    /* winning cell highlight */
+    .cell.winner {
+      background: rgba(255,226,89,.07);
+      border-color: var(--win-glow) !important;
+      box-shadow: 0 0 24px rgba(255,226,89,.35), inset 0 0 12px rgba(255,226,89,.08);
+      animation: winPulse 1s ease-in-out infinite;
+    }
+
+    @keyframes winPulse {
+      0%, 100% { box-shadow: 0 0 24px rgba(255,226,89,.35), inset 0 0 12px rgba(255,226,89,.08); }
+      50%       { box-shadow: 0 0 40px rgba(255,226,89,.6),  inset 0 0 20px rgba(255,226,89,.15); }
+    }
+
+    /* mark pop-in animation */
+    .cell.placed {
+      animation: cellPop .25s cubic-bezier(.34,1.56,.64,1);
+    }
+
+    @keyframes cellPop {
+      from { transform: scale(.5); opacity: .5; }
+      to   { transform: scale(1);  opacity: 1;  }
+    }
+
+    /* disabled state (game over) */
+    .cell.disabled { cursor: not-allowed; }
+
+    /* ═══════════════════════════════════════════
+       BUTTONS
+    ═══════════════════════════════════════════ */
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform .12s, box-shadow .2s, background .2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:active { transform: scale(.96); }
+
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,.07);
+      opacity: 0;
+      transition: opacity .15s;
+    }
+    .btn:hover::after { opacity: 1; }
+
+    .btn-restart {
+      background: linear-gradient(135deg, #1a1f3a, #222844);
+      color: var(--text);
+      border: 1px solid var(--border);
+      grid-column: span 2;
+      font-size: 13px;
+      padding: 14px;
+      letter-spacing: .16em;
+    }
+
+    .btn-restart:hover { border-color: #3a4070; }
+
+    .btn-undo {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .btn-scores {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    /* ═══════════════════════════════════════════
+       PARTICLE BURST  (winner celebration)
+    ═══════════════════════════════════════════ */
+    .particles {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    .particle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      animation: fall linear forwards;
+    }
+
+    @keyframes fall {
+      0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+      100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ═══════════════════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════════════════ */
+    @media (max-width: 380px) {
+      .card { padding: 18px 16px; }
+      .grid { gap: 7px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Particle container for win celebration -->
+<div class="particles" id="particles"></div>
+
+<h1 class="title">Tic · Tac · Toe</h1>
+<p class="subtitle">Classic Grid Combat</p>
+
+<div class="card">
+
+  <!-- ── Mode Toggle ── -->
+  <div class="mode-toggle">
+    <button class="mode-btn active" id="btn-pvp"  onclick="setMode('pvp')">👤 vs Human</button>
+    <button class="mode-btn"        id="btn-ai"   onclick="setMode('ai')">🤖 vs AI</button>
+  </div>
+
+  <!-- ── Scoreboard ── -->
+  <div class="scoreboard">
+    <div class="score-side active-x" id="score-x">
+      <div class="score-label x">X</div>
+      <div class="score-value" id="wins-x">0</div>
+      <div class="score-wins">wins</div>
+    </div>
+    <div class="score-divider">
+      <div id="draws-val">0</div>
+      <div style="font-size:9px;margin-top:2px;">draws</div>
+    </div>
+    <div class="score-side" id="score-o">
+      <div class="score-label o">O</div>
+      <div class="score-value" id="wins-o">0</div>
+      <div class="score-wins">wins</div>
+    </div>
+  </div>
+
+  <!-- ── Status Bar ── -->
+  <div class="status-bar turn-x" id="status">Player X's Turn</div>
+
+  <!-- ── 3×3 Grid ── -->
+  <div class="grid" id="grid">
+    <!-- 9 cells generated by JS -->
+  </div>
+
+  <!-- ── Controls ── -->
+  <div class="btn-row">
+    <button class="btn btn-undo"    id="btn-undo"   onclick="undoMove()">↩ Undo</button>
+    <button class="btn btn-scores"  onclick="resetScores()">⟳ Scores</button>
+    <button class="btn btn-restart" onclick="restartGame()">▶ New Game</button>
+  </div>
+
+</div>
+
+<script>
+  /* ═══════════════════════════════════════════
+     GAME STATE
+  ═══════════════════════════════════════════ */
+  const EMPTY = '';
+  const X     = 'X';
+  const O     = 'O';
+
+  // All possible winning line indices
+  const WIN_LINES = [
+    [0,1,2], [3,4,5], [6,7,8],   // rows
+    [0,3,6], [1,4,7], [2,5,8],   // cols
+    [0,4,8], [2,4,6]             // diagonals
+  ];
+
+  let board       = Array(9).fill(EMPTY);  // current board
+  let currentPlayer = X;                   // whose turn
+  let gameOver    = false;
+  let mode        = 'pvp';                 // 'pvp' or 'ai'
+  let history     = [];                    // stack of board snapshots for undo
+  let scores      = { X: 0, O: 0, draws: 0 };
+
+  /* ═══════════════════════════════════════════
+     DOM REFS
+  ═══════════════════════════════════════════ */
+  const gridEl    = document.getElementById('grid');
+  const statusEl  = document.getElementById('status');
+  const winsXEl   = document.getElementById('wins-x');
+  const winsOEl   = document.getElementById('wins-o');
+  const drawsEl   = document.getElementById('draws-val');
+  const scoreXEl  = document.getElementById('score-x');
+  const scoreOEl  = document.getElementById('score-o');
+  const undoBtn   = document.getElementById('btn-undo');
+
+  /* ═══════════════════════════════════════════
+     BUILD GRID  (called once on load)
+  ═══════════════════════════════════════════ */
+  function buildGrid() {
+    gridEl.innerHTML = '';
+    for (let i = 0; i < 9; i++) {
+      const cell = document.createElement('div');
+      cell.className  = 'cell empty';
+      cell.dataset.index = i;
+      cell.dataset.preview = currentPlayer;  // ghost preview
+      cell.addEventListener('click', () => handleClick(i));
+      gridEl.appendChild(cell);
+    }
+  }
+
+  /* ═══════════════════════════════════════════
+     HANDLE CELL CLICK
+  ═══════════════════════════════════════════ */
+  function handleClick(index) {
+    // Ignore if cell taken, game over, or AI's turn
+    if (board[index] !== EMPTY || gameOver) return;
+    if (mode === 'ai' && currentPlayer === O)  return;
+
+    makeMove(index);
+  }
+
+  /* ═══════════════════════════════════════════
+     MAKE A MOVE
+  ═══════════════════════════════════════════ */
+  function makeMove(index) {
+    // Save snapshot for undo
+    history.push([...board]);
+
+    board[index]  = currentPlayer;
+    renderCell(index, currentPlayer);
+
+    const result = checkResult();
+
+    if (result) {
+      handleResult(result);
+    } else {
+      // Switch turn
+      currentPlayer = currentPlayer === X ? O : X;
+      updateStatus();
+      updateScoreHighlight();
+      updatePreviewHints();
+
+      // AI move after a short delay
+      if (mode === 'ai' && currentPlayer === O && !gameOver) {
+        setTimeout(aiMove, 380);
+      }
+    }
+
+    // Update undo button state
+    undoBtn.disabled = history.length === 0 || gameOver;
+  }
+
+  /* ═══════════════════════════════════════════
+     RENDER A SINGLE CELL
+  ═══════════════════════════════════════════ */
+  function renderCell(index, player) {
+    const cell = gridEl.children[index];
+    cell.textContent = player;
+    cell.className   = `cell ${player.toLowerCase()} placed`;
+    // Remove 'placed' after animation so it can re-trigger
+    cell.addEventListener('animationend', () => {
+      cell.classList.remove('placed');
+    }, { once: true });
+  }
+
+  /* ═══════════════════════════════════════════
+     CHECK WIN / DRAW
+     Returns: { type: 'win', player, line } | { type: 'draw' } | null
+  ═══════════════════════════════════════════ */
+  function checkResult() {
+    for (const line of WIN_LINES) {
+      const [a, b, c] = line;
+      if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+        return { type: 'win', player: board[a], line };
+      }
+    }
+    if (board.every(cell => cell !== EMPTY)) {
+      return { type: 'draw' };
+    }
+    return null;
+  }
+
+  /* ═══════════════════════════════════════════
+     HANDLE GAME RESULT
+  ═══════════════════════════════════════════ */
+  function handleResult(result) {
+    gameOver = true;
+
+    if (result.type === 'win') {
+      // Highlight winning cells
+      result.line.forEach(i => {
+        gridEl.children[i].classList.add('winner');
+      });
+
+      scores[result.player]++;
+      updateScoreDisplay();
+
+      statusEl.textContent = `Player ${result.player} Wins! 🏆`;
+      statusEl.className   = 'status-bar win';
+
+      launchParticles(result.player === X ? '#ff3c6e' : '#00e5ff');
+    } else {
+      scores.draws++;
+      updateScoreDisplay();
+      statusEl.textContent = "It's a Draw! 🤝";
+      statusEl.className   = 'status-bar draw';
+    }
+
+    // Disable all remaining empty cells
+    Array.from(gridEl.children).forEach(cell => {
+      if (cell.classList.contains('empty')) cell.classList.add('disabled');
+    });
+
+    undoBtn.disabled = true;
+  }
+
+  /* ═══════════════════════════════════════════
+     UPDATE STATUS TEXT
+  ═══════════════════════════════════════════ */
+  function updateStatus() {
+    const isAI = mode === 'ai' && currentPlayer === O;
+    statusEl.textContent = isAI ? 'AI is thinking…' : `Player ${currentPlayer}'s Turn`;
+    statusEl.className   = `status-bar turn-${currentPlayer.toLowerCase()}`;
+  }
+
+  /* ═══════════════════════════════════════════
+     SCORE HIGHLIGHT — active player panel
+  ═══════════════════════════════════════════ */
+  function updateScoreHighlight() {
+    scoreXEl.className = 'score-side' + (currentPlayer === X ? ' active-x' : '');
+    scoreOEl.className = 'score-side' + (currentPlayer === O ? ' active-o' : '');
+  }
+
+  /* ═══════════════════════════════════════════
+     UPDATE SCORE DISPLAY
+  ═══════════════════════════════════════════ */
+  function updateScoreDisplay() {
+    winsXEl.textContent  = scores.X;
+    winsOEl.textContent  = scores.O;
+    drawsEl.textContent  = scores.draws;
+  }
+
+  /* ═══════════════════════════════════════════
+     PREVIEW HINTS — ghost letter on hover
+  ═══════════════════════════════════════════ */
+  function updatePreviewHints() {
+    Array.from(gridEl.children).forEach(cell => {
+      if (!cell.classList.contains('empty')) return;
+      cell.dataset.preview = currentPlayer;
+      cell.classList.toggle('preview-x', currentPlayer === X);
+      cell.classList.toggle('preview-o', currentPlayer === O);
+    });
+  }
+
+  /* ═══════════════════════════════════════════
+     UNDO LAST MOVE
+  ═══════════════════════════════════════════ */
+  function undoMove() {
+    if (history.length === 0 || gameOver) return;
+
+    // In AI mode, undo 2 moves (human + AI)
+    const steps = (mode === 'ai' && history.length >= 2) ? 2 : 1;
+    for (let s = 0; s < steps && history.length > 0; s++) {
+      board = history.pop();
+    }
+
+    // Re-render the whole grid from board state
+    Array.from(gridEl.children).forEach((cell, i) => {
+      const val = board[i];
+      if (val === EMPTY) {
+        cell.className       = 'cell empty';
+        cell.textContent     = '';
+        cell.dataset.preview = currentPlayer;
+      } else {
+        cell.textContent = val;
+        cell.className   = `cell ${val.toLowerCase()}`;
+      }
+    });
+
+    // After undo it's always the human's (X) turn
+    currentPlayer = X;
+    gameOver      = false;
+    updateStatus();
+    updateScoreHighlight();
+    updatePreviewHints();
+    undoBtn.disabled = history.length === 0;
+  }
+
+  /* ═══════════════════════════════════════════
+     RESTART GAME  (keep scores)
+  ═══════════════════════════════════════════ */
+  function restartGame() {
+    board         = Array(9).fill(EMPTY);
+    currentPlayer = X;
+    gameOver      = false;
+    history       = [];
+
+    buildGrid();
+    updateStatus();
+    updateScoreHighlight();
+    updatePreviewHints();
+    undoBtn.disabled = true;
+
+    // Clear particles
+    document.getElementById('particles').innerHTML = '';
+  }
+
+  /* ═══════════════════════════════════════════
+     RESET SCORES
+  ═══════════════════════════════════════════ */
+  function resetScores() {
+    scores = { X: 0, O: 0, draws: 0 };
+    updateScoreDisplay();
+    restartGame();
+  }
+
+  /* ═══════════════════════════════════════════
+     SET MODE  (pvp / ai)
+  ═══════════════════════════════════════════ */
+  function setMode(newMode) {
+    mode = newMode;
+    document.getElementById('btn-pvp').classList.toggle('active', mode === 'pvp');
+    document.getElementById('btn-ai').classList.toggle('active',  mode === 'ai');
+
+    // Update O score label
+    const oLabel = scoreOEl.querySelector('.score-label');
+    oLabel.textContent = mode === 'ai' ? '🤖' : 'O';
+
+    restartGame();
+  }
+
+  /* ═══════════════════════════════════════════
+     AI — MINIMAX with alpha-beta pruning
+  ═══════════════════════════════════════════ */
+  function aiMove() {
+    if (gameOver) return;
+
+    const idx = getBestMove(board);
+    makeMove(idx);
+  }
+
+  /**
+   * Returns the best move index for the AI (O).
+   */
+  function getBestMove(b) {
+    let bestScore = -Infinity;
+    let bestIdx   = -1;
+
+    for (let i = 0; i < 9; i++) {
+      if (b[i] !== EMPTY) continue;
+      b[i] = O;
+      const score = minimax(b, 0, false, -Infinity, Infinity);
+      b[i] = EMPTY;
+      if (score > bestScore) { bestScore = score; bestIdx = i; }
+    }
+    return bestIdx;
+  }
+
+  /**
+   * Minimax with alpha-beta pruning.
+   * @param {string[]} b      - board array
+   * @param {number}   depth  - recursion depth
+   * @param {boolean}  isMax  - true = AI's turn (O)
+   * @param {number}   alpha
+   * @param {number}   beta
+   */
+  function minimax(b, depth, isMax, alpha, beta) {
+    const result = evalBoard(b);
+    if (result !== null) return result - depth * Math.sign(result);  // prefer faster wins
+
+    if (isMax) {
+      let best = -Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (b[i] !== EMPTY) continue;
+        b[i] = O;
+        best = Math.max(best, minimax(b, depth + 1, false, alpha, beta));
+        b[i] = EMPTY;
+        alpha = Math.max(alpha, best);
+        if (beta <= alpha) break;   // prune
+      }
+      return best;
+    } else {
+      let best = Infinity;
+      for (let i = 0; i < 9; i++) {
+        if (b[i] !== EMPTY) continue;
+        b[i] = X;
+        best = Math.min(best, minimax(b, depth + 1, true, alpha, beta));
+        b[i] = EMPTY;
+        beta = Math.min(beta, best);
+        if (beta <= alpha) break;   // prune
+      }
+      return best;
+    }
+  }
+
+  /**
+   * Evaluate terminal board state.
+   * Returns +10 (O wins), -10 (X wins), 0 (draw), null (not terminal).
+   */
+  function evalBoard(b) {
+    for (const [a, bI, c] of WIN_LINES) {
+      if (b[a] && b[a] === b[bI] && b[a] === b[c]) {
+        return b[a] === O ? 10 : -10;
+      }
+    }
+    if (b.every(cell => cell !== EMPTY)) return 0;
+    return null;
+  }
+
+  /* ═══════════════════════════════════════════
+     PARTICLE BURST  (win celebration)
+  ═══════════════════════════════════════════ */
+  function launchParticles(color) {
+    const container = document.getElementById('particles');
+    const count     = 60;
+    const colors    = [color, '#ffe259', '#ffffff', color + 'aa'];
+
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+
+      const size   = 4 + Math.random() * 8;
+      const left   = Math.random() * 100;
+      const delay  = Math.random() * 0.8;
+      const dur    = 1.2 + Math.random() * 1.2;
+      const col    = colors[Math.floor(Math.random() * colors.length)];
+
+      p.style.cssText = `
+        width:${size}px; height:${size}px;
+        left:${left}%;
+        background:${col};
+        animation-duration:${dur}s;
+        animation-delay:${delay}s;
+        border-radius:${Math.random() > .5 ? '50%' : '2px'};
+      `;
+      container.appendChild(p);
+
+      // Clean up after animation
+      p.addEventListener('animationend', () => p.remove());
+    }
+  }
+
+  /* ═══════════════════════════════════════════
+     KEYBOARD SHORTCUT  — R to restart
+  ═══════════════════════════════════════════ */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'r' || e.key === 'R') restartGame();
+  });
+
+  /* ═══════════════════════════════════════════
+     INIT
+  ═══════════════════════════════════════════ */
+  buildGrid();
+  updatePreviewHints();
+  undoBtn.disabled = true;
+</script>
+</body>
+</html>
